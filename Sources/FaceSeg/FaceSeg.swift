@@ -11,8 +11,8 @@ public struct FaceSegResult {
     /// Original image with transparent holes instead of the detected faces
     public let cutoutFacesImage: UIImage?
     
-    
-   // let segmentedFacesImages: [UIImage?]
+    /// An array of detected faces as separate images
+    public let facesInBoundingBoxes: [UIImage]?
 }
 
 public protocol FaceSegDelegate: AnyObject {
@@ -38,10 +38,12 @@ public class FaceSeg {
             let debugImage = self.drawPaths(paths, on: image)
             let onlyFacesImage = self.drawOnlyFaces(facePaths: paths, image: image)
             let cutoutFacesImage = self.drawImageWithoutFaces(facePaths: paths, image: image)
+            let facesInBoxes = self.drawFacesInBoundingBoxes(observations: observations, facePaths: paths, image: image)
             
             let result = FaceSegResult(debugImage: debugImage,
                                        facesImage: onlyFacesImage,
-                                       cutoutFacesImage: cutoutFacesImage)
+                                       cutoutFacesImage: cutoutFacesImage,
+                                       facesInBoundingBoxes: facesInBoxes)
             
             self.delegate?.didFinishProcessing(result)
         }
@@ -58,8 +60,10 @@ public class FaceSeg {
         
         let request = VNDetectFaceLandmarksRequest { request, error in
             if let observations = request.results as? [VNFaceObservation] {
+                // TODO: Throw error if observations.isEmpty
                 completion(observations)
             } else {
+                // TODO: Check if I need to call completion in else
                 self.delegate?.didFinishWithError("Can't get VNFaceObservation array")
             }
         }
@@ -112,7 +116,7 @@ public class FaceSeg {
         for face in faces {
             var points: [CGPoint] = []
             
-            // Add the face contour
+            // Face contour
             if let landmark = face.landmarks?.faceContour {
                 for i in 0..<landmark.pointCount { // last point is 0,0
                     let point = convertFacePointToImageCoordinates(landmark.normalizedPoints[i], face: face, image: image)
@@ -138,7 +142,7 @@ public class FaceSeg {
             let leftEyebrowControlPoint = convertFacePointToImageCoordinates(leftEyebrowEdgePointRaised, face: face, image: image)
             let rightEyebrowControlPoint = convertFacePointToImageCoordinates(rightEyebrowEdgePointRaised, face: face, image: image)
             
-            // TODO: Add a point in the middle of the forehead. Between the eyebrows + raised
+            // TODO: Add a point in the middle of the forehead. Between the eyebrows + raised. An idea is to use the top point of the bounding box
             
             let topFacePartPoints = [leftEyebrowControlPoint, rightEyebrowControlPoint, firstFacePoint]
             points.append(contentsOf: topFacePartPoints)
@@ -166,131 +170,158 @@ public class FaceSeg {
     // MARK: - Drawing
     
     private func drawPaths(_ paths: [UIBezierPath], on image: UIImage) -> UIImage? {
-//        let renderer = UIGraphicsImageRenderer(size: image.size)
-//        
-//        let finalImage = renderer.image { context in
-//            // Draw the original image
-//            image.draw(in: CGRect(origin: .zero, size: image.size))
-//            
-//            // Set up for drawing paths
-//            context.cgContext.translateBy(x: 0, y: image.size.height)
-//            context.cgContext.scaleBy(x: 1.0, y: -1.0)
-//            
-//            // Draw each path
-//            for path in paths {
-//                context.cgContext.addPath(path.cgPath)
-//                context.cgContext.setStrokeColor(UIColor.yellow.cgColor)
-//                context.cgContext.setLineWidth(8.0)
-//                context.cgContext.drawPath(using: .stroke)
-//            }
-//        }
-//        
-//        return finalImage
+        let renderer = UIGraphicsImageRenderer(size: image.size)
         
-        UIGraphicsBeginImageContextWithOptions(image.size, true, 0.0)
-        
-        guard let context = UIGraphicsGetCurrentContext() else { fatalError() }
-        context.saveGState()
-        
-        image.draw(in: CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
-        
-        context.translateBy(x: 0, y: image.size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
-        
-        for path in paths {
-            context.addPath(path.cgPath)
-            context.setStrokeColor(UIColor.yellow.cgColor)
-            context.setLineWidth(8.0)
-            context.drawPath(using: .stroke)
+        let finalImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            
+            context.cgContext.translateBy(x: 0, y: image.size.height)
+            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+            
+            for path in paths {
+                context.cgContext.addPath(path.cgPath)
+                context.cgContext.setStrokeColor(UIColor.yellow.cgColor)
+                context.cgContext.setLineWidth(8.0) // TODO: line width based on image size
+                context.cgContext.drawPath(using: .stroke)
+            }
         }
-        
-        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        context.restoreGState()
         
         return finalImage
     }
     
     private func drawDots(_ dots: [CGPoint], on image: UIImage) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(image.size, true, 0.0)
+        let renderer = UIGraphicsImageRenderer(size: image.size)
         
-        guard let context = UIGraphicsGetCurrentContext() else { fatalError() }
-        context.saveGState()
-        
-        image.draw(in: CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
-        
-        context.translateBy(x: 0, y: image.size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
-        
-        for dot in dots {
+        let finalImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            
+            context.cgContext.translateBy(x: 0, y: image.size.height)
+            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+            
             let radius: CGFloat = 8.0
-            context.setFillColor(UIColor.systemPink.cgColor)
-            context.addEllipse(in: CGRect(x: dot.x - radius, y: dot.y - radius, width: radius * 2, height: radius * 2))
-            context.drawPath(using: .fill)
+            
+            for dot in dots {
+                context.cgContext.setFillColor(UIColor.systemPink.cgColor)
+                context.cgContext.addEllipse(in: CGRect(x: dot.x - radius, y: dot.y - radius, width: radius * 2, height: radius * 2))
+                context.cgContext.drawPath(using: .fill)
+            }
         }
-        
-        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        context.restoreGState()
         
         return finalImage
     }
     
     private func drawOnlyFaces(facePaths: [UIBezierPath], image: UIImage) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale) // TODO: Figure this out (it's different in all funcs)
         
+        // TODO: Use this modern approach
+//        let renderer = UIGraphicsImageRenderer(size: image.size)
+//        
+//        let finalImage = renderer.image { context in
+//            image.draw(at: .zero)
+//                    
+//            context.cgContext.translateBy(x: 0, y: image.size.height)
+//            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+//            
+//            context.cgContext.setBlendMode(.clear)
+//            context.cgContext.setFillColor(UIColor.clear.cgColor)
+//            
+//            context.cgContext.addRect(CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
+//            for path in facePaths {
+//                context.cgContext.addPath(path.cgPath)
+//            }
+//            context.cgContext.drawPath(using: .eoFill)
+//        }
+//        
+//        return finalImage
+        
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+
         guard let context = UIGraphicsGetCurrentContext() else { fatalError() }
         context.saveGState()
-        
+
         image.draw(at: CGPoint.zero)
-        
+
         context.translateBy(x: 0, y: image.size.height)
         context.scaleBy(x: 1.0, y: -1.0)
-        
+
         context.setBlendMode(.clear)
         context.setFillColor(UIColor.clear.cgColor)
-        
+
         context.addRect(CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
         for path in facePaths {
             context.addPath(path.cgPath)
         }
         context.drawPath(using: .eoFill)
-        
+
         let finalImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        
+
         context.restoreGState()
-        
+
         return finalImage
     }
     
     private func drawImageWithoutFaces(facePaths: [UIBezierPath], image: UIImage) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        let renderer = UIGraphicsImageRenderer(size: image.size)
         
-        guard let context = UIGraphicsGetCurrentContext() else { fatalError() }
-        context.saveGState()
-        
-        image.draw(at: CGPoint.zero)
-        
-        context.translateBy(x: 0, y: image.size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
-        
-        context.setBlendMode(.clear)
-        context.setFillColor(UIColor.clear.cgColor)
-        
-        for path in facePaths {
-            context.addPath(path.cgPath)
-            context.fillPath()
+        let finalImage = renderer.image { context in
+            image.draw(at: .zero)
+            
+            context.cgContext.translateBy(x: 0, y: image.size.height)
+            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+            
+            context.cgContext.setBlendMode(.clear)
+            context.cgContext.setFillColor(UIColor.clear.cgColor)
+            
+            for path in facePaths {
+                context.cgContext.addPath(path.cgPath)
+                context.cgContext.fillPath()
+            }
         }
         
-        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        context.restoreGState()
-        
         return finalImage
+    }
+    
+    private func drawFacesInBoundingBoxes(observations: [VNFaceObservation], facePaths: [UIBezierPath], image: UIImage) -> [UIImage] {
+        guard observations.count == facePaths.count else {
+            fatalError("Observation count doesn't match facePaths count")
+        }
+
+        guard let onlyFacesImage = drawOnlyFaces(facePaths: facePaths, image: image) else {
+            fatalError("Can't get only faces image")
+        }
+
+        var faceImages: [UIImage] = []
+            
+        faceImages.append(onlyFacesImage)
+
+        observations.enumerated().forEach { i, obs in
+            var box = obs.boundingBox
+
+            // Convert from normalized to pixel coordinates
+            box.origin.x *= image.size.width
+            box.origin.y *= image.size.height
+            box.size.width *= image.size.width
+            box.size.height *= image.size.height
+
+            // Adjust the y-coordinate for the CGImage's coordinate space
+            box.origin.y = image.size.height - box.origin.y - box.height
+
+            guard let croppedCGImage = onlyFacesImage.cgImage?.cropping(to: box) else {
+                fatalError()
+            }
+
+            UIGraphicsBeginImageContextWithOptions(CGSize(width: 512, height: 512), false, image.scale)
+
+            UIImage(cgImage: croppedCGImage).draw(in: CGRect(x: 0, y: 0, width: 512, height: 512))
+
+            if let resizedImage = UIGraphicsGetImageFromCurrentImageContext() {
+                faceImages.append(resizedImage)
+            }
+
+            UIGraphicsEndImageContext()
+        }
+
+        return faceImages
     }
     
     // MARK: - Utility

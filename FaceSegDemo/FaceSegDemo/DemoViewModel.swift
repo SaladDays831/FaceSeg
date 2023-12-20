@@ -5,12 +5,13 @@ class DemoViewModel: ObservableObject {
     
     private let faceSeg = FaceSeg()
     
-    @Published var originalImage = UIImage(resource: .demoImg) {
+    @Published var originalImage = UIImage(resource: .face) {
         didSet {
             modifiedImage = nil
         }
     }
     @Published var modifiedImage: UIImage?
+    @Published var processedImages: [UIImage]?
     
     @Published var showingImagePicker = false
     @Published var sourceType: UIImagePickerController.SourceType = .photoLibrary
@@ -19,6 +20,9 @@ class DemoViewModel: ObservableObject {
         faceSeg.delegate = self
     }
     
+    func processImage() {
+        faceSeg.process(originalImage)
+    }
     
     func requestDebugImage() {
         // faceSeg.debugImage(from: originalImage)
@@ -37,7 +41,11 @@ class DemoViewModel: ObservableObject {
 
 extension DemoViewModel: FaceSegDelegate {
     func didFinishProcessing(_ result: FaceSegResult) {
-        modifiedImage = result.debugImage
+        //var images = [result.debugImage, result.facesImage, result.cutoutFacesImage].compactMap({$0})
+       //images.append(contentsOf: result.facesInBoundingBoxes ?? [])
+        
+        var images = result.facesInBoundingBoxes
+        processedImages = images
     }
     
     func didFinishWithError(_ errorString: String) {

@@ -1,5 +1,26 @@
 import SwiftUI
 
+
+struct HorizontalImageGrid: View {
+    let images: [UIImage]
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(images, id: \.self) { image in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: UIScreen.main.bounds.width - 10, height: 400)
+                        .clipped()
+                }
+            }
+            .padding(10)
+            .background(Color.gray)
+        }
+    }
+}
+
 struct DemoView: View {
     
     @ObservedObject var viewModel = DemoViewModel()
@@ -18,36 +39,21 @@ struct DemoView: View {
                 }
             }
             
-            Image(uiImage: viewModel.modifiedImage ?? viewModel.originalImage)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: 400)
-                .background(Color.gray)
-                .padding()
+            Spacer()
             
-            VStack(alignment: .leading) {
-                HStack {
-                    CoolButton(title: "Debug") {
-                        viewModel.requestDebugImage()
-                    }
-                    Text("Draw lines and bounding boxes on the original image")
-                        .font(.footnote)
-                }
-                HStack {
-                    CoolButton(title: "Segment") {
-                        viewModel.requestSegmentedFacesImage()
-                    }
-                    Text("Segment the faces and composite on a transparent background (preserve the locations/scales)")
-                        .font(.footnote)
-                }
-                HStack {
-                    CoolButton(title: "Segment + scale") {
-                        viewModel.requestSeparateSegmentedFaceImages()
-                    }
-                    Text("Segment the faces and return a separate image for each face")
-                        .font(.footnote)
-                }
-            }
+            HorizontalImageGrid(images: viewModel.processedImages ?? [viewModel.originalImage])
+//            Image(uiImage: viewModel.modifiedImage ?? viewModel.originalImage)
+//                .resizable()
+//                .scaledToFit()
+//                .frame(maxWidth: .infinity, maxHeight: 400)
+//                .background(Color.gray)
+//                .padding()
+            
+            Spacer()
+            
+            CoolButton(title: "Process", action: {
+                self.viewModel.processImage()
+            })
             .padding()
             
             CoolButton(title: "Reset") {
