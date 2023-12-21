@@ -5,13 +5,12 @@ class DemoViewModel: ObservableObject {
     
     private let faceSeg = FaceSeg()
     
+    @Published var processedImages: [UIImage]?
     @Published var originalImage = UIImage(resource: .demoImg) {
         didSet {
-            modifiedImage = nil
+            processedImages = nil
         }
     }
-    @Published var modifiedImage: UIImage?
-    @Published var processedImages: [UIImage]?
     
     @Published var showingImagePicker = false
     @Published var sourceType: UIImagePickerController.SourceType = .photoLibrary
@@ -22,19 +21,6 @@ class DemoViewModel: ObservableObject {
     
     func processImage() {
         faceSeg.process(originalImage)
-    }
-    
-    func requestDebugImage() {
-        // faceSeg.debugImage(from: originalImage)
-        faceSeg.process(originalImage)
-    }
-    
-    func requestSegmentedFacesImage() {
-       // faceSeg.segmentedFacesImage(from: originalImage)
-    }
-    
-    func requestSeparateSegmentedFaceImages() {
-        // faceSeg.segmentedFacesSeparateImages(from: originalImage)
     }
 
 }

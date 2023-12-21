@@ -20,9 +20,19 @@ public protocol FaceSegDelegate: AnyObject {
     func didFinishWithError(_ errorString: String)
 }
 
+public class FaceSegConfiguration {
+    var drawDebugImage = true
+    var drawFacesImage = true
+    var drawCutoutFacesImage = true
+    var drawFacesInBoundingBoxes = true
+    var faceInBoundingBoxImageHeight: CGFloat = 512
+}
+
 public class FaceSeg {
     
     typealias FacePointArray = [CGPoint]
+    
+    public var configuration = FaceSegConfiguration()
     
     public weak var delegate: FaceSegDelegate?
     
@@ -257,11 +267,13 @@ public class FaceSeg {
     
     private func drawFacesInBoundingBoxes(observations: [VNFaceObservation], facePaths: [UIBezierPath], image: UIImage) -> [UIImage] {
         guard observations.count == facePaths.count else {
-            fatalError("Observation count doesn't match facePaths count")
+            delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Observation count doesn't match facePath count")
+            return []
         }
 
         guard let onlyFacesImage = drawOnlyFaces(facePaths: facePaths, image: image) else {
-            fatalError("Can't get only faces image")
+            delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Can't draw segmented faces image")
+            return []
         }
 
         var faceImages: [UIImage] = []
@@ -280,15 +292,18 @@ public class FaceSeg {
             // Adjust the y-coordinate for the CGImage's coordinate space
             box.origin.y = image.size.height - box.origin.y - box.height
             
-            let renderer = UIGraphicsImageRenderer(size: .init(width: 512, height: 512))
+            let targetSize = CGSize(width: configuration.faceInBoundingBoxImageHeight,
+                                    height: configuration.faceInBoundingBoxImageHeight)
+            
+            let renderer = UIGraphicsImageRenderer(size: targetSize)
             let finalImage = renderer.image { context in
-                context.cgContext.translateBy(x: 0, y: 512)
+                context.cgContext.translateBy(x: 0, y: targetSize.height)
                 context.cgContext.scaleBy(x: 1.0, y: -1.0)
                 
                 if let croppedImage = onlyFacesImage.cgImage?.cropping(to: box) {
-                    context.cgContext.draw(croppedImage, in: CGRect(origin: .zero, size: .init(width: 512, height: 512)))
+                    context.cgContext.draw(croppedImage, in: CGRect(origin: .zero, size: targetSize))
                 } else {
-                    print("Cropping to face bounding box failed")
+                    delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Failed to crop segmented image to bounding box")
                 }
             }
             faceImages.append(finalImage)

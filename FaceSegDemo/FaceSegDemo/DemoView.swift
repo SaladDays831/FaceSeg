@@ -1,26 +1,5 @@
 import SwiftUI
 
-
-struct HorizontalImageGrid: View {
-    let images: [UIImage]
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(images, id: \.self) { image in
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: UIScreen.main.bounds.width - 10, height: 400)
-                        .clipped()
-                }
-            }
-            .padding(10)
-            .background(Color.gray)
-        }
-    }
-}
-
 struct DemoView: View {
     
     @ObservedObject var viewModel = DemoViewModel()
@@ -38,16 +17,20 @@ struct DemoView: View {
                     self.viewModel.showingImagePicker = true
                 }
             }
+            .padding()
             
             Spacer()
             
-            HorizontalImageGrid(images: viewModel.processedImages ?? [viewModel.originalImage])
-//            Image(uiImage: viewModel.modifiedImage ?? viewModel.originalImage)
-//                .resizable()
-//                .scaledToFit()
-//                .frame(maxWidth: .infinity, maxHeight: 400)
-//                .background(Color.gray)
-//                .padding()
+            Image(uiImage: viewModel.originalImage)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: 400)
+                .background(Color.secondary)
+                .padding()
+            
+            if let images = viewModel.processedImages {
+                HorizontalImageGrid(images: images)
+            }
             
             Spacer()
             
@@ -57,9 +40,9 @@ struct DemoView: View {
             .padding()
             
             CoolButton(title: "Reset") {
-                self.viewModel.modifiedImage = nil
+                self.viewModel.processedImages = nil
             }
-            .opacity(viewModel.modifiedImage == nil ? 0 : 1)
+            .opacity(viewModel.processedImages == nil ? 0 : 1)
         }
         .sheet(isPresented: $viewModel.showingImagePicker) {
             ImagePicker(image: $viewModel.originalImage, sourceType: self.viewModel.sourceType)
