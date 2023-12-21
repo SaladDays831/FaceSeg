@@ -25,25 +25,26 @@ struct DemoView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: 400)
-                .background(Color.secondary)
+                .background(Color.white.opacity(0.1))
                 .padding()
             
             if let images = viewModel.processedImages {
-                HorizontalImageGrid(images: images)
+                HorizontalImageGrid(images: images, action: { index in
+                    print(index)
+                })
             }
             
             Spacer()
             
             CoolButton(title: "Process", action: {
                 self.viewModel.processImage()
-            })
-            .padding()
-            
+            })            
             CoolButton(title: "Reset") {
                 self.viewModel.processedImages = nil
             }
             .opacity(viewModel.processedImages == nil ? 0 : 1)
         }
+        .background(Color.black)
         .sheet(isPresented: $viewModel.showingImagePicker) {
             ImagePicker(image: $viewModel.originalImage, sourceType: self.viewModel.sourceType)
         }

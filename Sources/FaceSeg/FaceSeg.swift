@@ -2,6 +2,8 @@ import UIKit
 import Vision
 
 public struct FaceSegResult {
+    public let boundingBoxes: [CGRect]?
+    
     /// Image with drawn paths around the detected faces
     public let debugImage: UIImage?
     
@@ -21,17 +23,18 @@ public protocol FaceSegDelegate: AnyObject {
 }
 
 public class FaceSegConfiguration {
-    var drawDebugImage = true
-    var drawFacesImage = true
-    var drawCutoutFacesImage = true
-    var drawFacesInBoundingBoxes = true
-    var faceInBoundingBoxImageHeight: CGFloat = 512
+    
+    public init() {}
+    
+    public var drawDebugImage = true
+    public var drawFacesImage = true
+    public var drawCutoutFacesImage = true
+    public var drawFacesInBoundingBoxes = true
+    public var faceInBoundingBoxImageHeight: CGFloat = 512
 }
 
 public class FaceSeg {
-    
-    typealias FacePointArray = [CGPoint]
-    
+        
     public var configuration = FaceSegConfiguration()
     
     public weak var delegate: FaceSegDelegate?
@@ -42,15 +45,18 @@ public class FaceSeg {
     
     public func process(_ image: UIImage) {
         getObservations(from: image) { observations in
-            let facesData = self.getFaceLandmarkPoints(faces: observations, image: image)
-            let paths = self.createCurves(from: facesData)
+            let landmarks = self.getFaceLandmarkPoints(faces: observations, image: image)
+            let paths = self.createCurves(from: landmarks)
             
-            let debugImage = self.drawPaths(paths, on: image)
+            let boundingBoxes = observations.map({ self.convertBoundingBoxToImageCoordinates($0.boundingBox, image: image) })
+            
+            let debugImage = self.drawDebugImage(boxes: boundingBoxes, paths: paths, landmarks: landmarks, image: image)
             let onlyFacesImage = self.drawOnlyFaces(facePaths: paths, image: image)
             let cutoutFacesImage = self.drawImageWithoutFaces(facePaths: paths, image: image)
             let facesInBoxes = self.drawFacesInBoundingBoxes(observations: observations, facePaths: paths, image: image)
             
-            let result = FaceSegResult(debugImage: debugImage,
+            let result = FaceSegResult(boundingBoxes: boundingBoxes,
+                                       debugImage: debugImage,
                                        facesImage: onlyFacesImage,
                                        cutoutFacesImage: cutoutFacesImage,
                                        facesInBoundingBoxes: facesInBoxes)
@@ -120,8 +126,8 @@ public class FaceSeg {
     }
     
     /// Returns an array of `FacePointArray`'s  (`[CGPoint]`)  that correspond to detected faces on the image
-    private func getFaceLandmarkPoints(faces: [VNFaceObservation], image: UIImage) -> [FacePointArray] {
-        var resultFaceData: [FacePointArray] = []
+    private func getFaceLandmarkPoints(faces: [VNFaceObservation], image: UIImage) -> [[CGPoint]] {
+        var resultFaceData: [[CGPoint]] = []
                 
         for face in faces {
             var points: [CGPoint] = []
@@ -164,7 +170,7 @@ public class FaceSeg {
     }
     
     /// Builds a smooth `UIBezierPath` using `addQuadCurve`/`addCurve` for each entry in the `data` array
-    private func createCurves(from data: [FacePointArray]) -> [UIBezierPath] {
+    private func createCurves(from data: [[CGPoint]]) -> [UIBezierPath] {
         var paths: [UIBezierPath] = []
         
         for facePoints in data {
@@ -179,20 +185,39 @@ public class FaceSeg {
     
     // MARK: - Drawing
     
-    private func drawPaths(_ paths: [UIBezierPath], on image: UIImage) -> UIImage? {
+    private func drawDebugImage(boxes: [CGRect], paths: [UIBezierPath], landmarks: [[CGPoint]], image: UIImage) -> UIImage? {
         let renderer = UIGraphicsImageRenderer(size: image.size)
         
         let finalImage = renderer.image { context in
             image.draw(in: CGRect(origin: .zero, size: image.size))
+            
+            // Draw the boxes before applying the context transformation, as the rects are already adjusted
+            for box in boxes {
+                print(box.size)
+                context.cgContext.addRect(box)
+                context.cgContext.setStrokeColor(UIColor.red.cgColor)
+                context.cgContext.setLineWidth(10.0)
+                context.cgContext.drawPath(using: .stroke)
+            }
             
             context.cgContext.translateBy(x: 0, y: image.size.height)
             context.cgContext.scaleBy(x: 1.0, y: -1.0)
             
             for path in paths {
                 context.cgContext.addPath(path.cgPath)
-                context.cgContext.setStrokeColor(UIColor.yellow.cgColor)
-                context.cgContext.setLineWidth(8.0) // TODO: line width based on image size
+                context.cgContext.setStrokeColor(UIColor.systemPink.cgColor)
+                context.cgContext.setLineWidth(8.0) // TODO: line width based on boundingBox size
                 context.cgContext.drawPath(using: .stroke)
+            }
+            
+            let radius: CGFloat = 8.0
+            for point in landmarks.flatMap({$0}) {
+                context.cgContext.setFillColor(UIColor.green.cgColor)
+                context.cgContext.addEllipse(in: CGRect(x: point.x - radius,
+                                                        y: point.y - radius,
+                                                        width: radius * 2,
+                                                        height: radius * 2))
+                context.cgContext.drawPath(using: .fill)
             }
         }
         
@@ -278,19 +303,8 @@ public class FaceSeg {
 
         var faceImages: [UIImage] = []
             
-        faceImages.append(onlyFacesImage)
-
         observations.enumerated().forEach { i, obs in
-            var box = obs.boundingBox
-
-            // Convert from normalized to pixel coordinates
-            box.origin.x *= image.size.width
-            box.origin.y *= image.size.height
-            box.size.width *= image.size.width
-            box.size.height *= image.size.height
-
-            // Adjust the y-coordinate for the CGImage's coordinate space
-            box.origin.y = image.size.height - box.origin.y - box.height
+            let box = convertBoundingBoxToImageCoordinates(obs.boundingBox, image: image)
             
             let targetSize = CGSize(width: configuration.faceInBoundingBoxImageHeight,
                                     height: configuration.faceInBoundingBoxImageHeight)
@@ -340,5 +354,20 @@ public class FaceSeg {
         let y = face.boundingBox.origin.y * image.size.height
         
         return CGPoint(x: x + CGFloat(point.x) * w, y: y + CGFloat(point.y) * h)
+    }
+    
+    private func convertBoundingBoxToImageCoordinates(_ boxRaw: CGRect, image: UIImage) -> CGRect {
+        var box = boxRaw
+        
+        // Convert from normalized to pixel coordinates
+        box.origin.x *= image.size.width
+        box.origin.y *= image.size.height
+        box.size.width *= image.size.width
+        box.size.height *= image.size.height
+
+        // Adjust the y-coordinate for the CGImage's coordinate space
+        box.origin.y = image.size.height - box.origin.y - box.height
+        
+        return box
     }
 }

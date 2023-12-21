@@ -1,5 +1,9 @@
 import UIKit
 
+/**
+ This is the original 9 year old algorithm I found on GitHub and converted to Swift 5
+ https://github.com/DeveloperLx/LxThroughPointsBezier-Swift
+ **/
 class SmoothBezierPathBuilder {
     
     var contractionFactor: CGFloat = 0.7
