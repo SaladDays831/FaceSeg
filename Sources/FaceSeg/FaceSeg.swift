@@ -211,52 +211,26 @@ public class FaceSeg {
     }
     
     private func drawOnlyFaces(facePaths: [UIBezierPath], image: UIImage) -> UIImage? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
         
-        // TODO: Use this modern approach
-//        let renderer = UIGraphicsImageRenderer(size: image.size)
-//        
-//        let finalImage = renderer.image { context in
-//            image.draw(at: .zero)
-//                    
-//            context.cgContext.translateBy(x: 0, y: image.size.height)
-//            context.cgContext.scaleBy(x: 1.0, y: -1.0)
-//            
-//            context.cgContext.setBlendMode(.clear)
-//            context.cgContext.setFillColor(UIColor.clear.cgColor)
-//            
-//            context.cgContext.addRect(CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
-//            for path in facePaths {
-//                context.cgContext.addPath(path.cgPath)
-//            }
-//            context.cgContext.drawPath(using: .eoFill)
-//        }
-//        
-//        return finalImage
-        
-        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
-
-        guard let context = UIGraphicsGetCurrentContext() else { fatalError() }
-        context.saveGState()
-
-        image.draw(at: CGPoint.zero)
-
-        context.translateBy(x: 0, y: image.size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
-
-        context.setBlendMode(.clear)
-        context.setFillColor(UIColor.clear.cgColor)
-
-        context.addRect(CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
-        for path in facePaths {
-            context.addPath(path.cgPath)
+        let finalImage = renderer.image { context in
+            image.draw(at: .zero)
+                    
+            context.cgContext.translateBy(x: 0, y: image.size.height)
+            context.cgContext.scaleBy(x: 1.0, y: -1.0)
+            
+            context.cgContext.setBlendMode(.clear)
+            context.cgContext.setFillColor(UIColor.clear.cgColor)
+            
+            context.cgContext.addRect(CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height))
+            for path in facePaths {
+                context.cgContext.addPath(path.cgPath)
+            }
+            context.cgContext.drawPath(using: .eoFill)
         }
-        context.drawPath(using: .eoFill)
-
-        let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        context.restoreGState()
-
+        
         return finalImage
     }
     
@@ -305,20 +279,19 @@ public class FaceSeg {
 
             // Adjust the y-coordinate for the CGImage's coordinate space
             box.origin.y = image.size.height - box.origin.y - box.height
-
-            guard let croppedCGImage = onlyFacesImage.cgImage?.cropping(to: box) else {
-                fatalError()
+            
+            let renderer = UIGraphicsImageRenderer(size: .init(width: 512, height: 512))
+            let finalImage = renderer.image { context in
+                context.cgContext.translateBy(x: 0, y: 512)
+                context.cgContext.scaleBy(x: 1.0, y: -1.0)
+                
+                if let croppedImage = onlyFacesImage.cgImage?.cropping(to: box) {
+                    context.cgContext.draw(croppedImage, in: CGRect(origin: .zero, size: .init(width: 512, height: 512)))
+                } else {
+                    print("Cropping to face bounding box failed")
+                }
             }
-
-            UIGraphicsBeginImageContextWithOptions(CGSize(width: 512, height: 512), false, image.scale)
-
-            UIImage(cgImage: croppedCGImage).draw(in: CGRect(x: 0, y: 0, width: 512, height: 512))
-
-            if let resizedImage = UIGraphicsGetImageFromCurrentImageContext() {
-                faceImages.append(resizedImage)
-            }
-
-            UIGraphicsEndImageContext()
+            faceImages.append(finalImage)
         }
 
         return faceImages

@@ -5,7 +5,7 @@ class DemoViewModel: ObservableObject {
     
     private let faceSeg = FaceSeg()
     
-    @Published var originalImage = UIImage(resource: .face) {
+    @Published var originalImage = UIImage(resource: .demoImg) {
         didSet {
             modifiedImage = nil
         }
