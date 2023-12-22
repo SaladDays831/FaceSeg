@@ -6,7 +6,7 @@ class DemoViewModel: ObservableObject {
     private let faceSeg = FaceSeg()
     
     @Published var processedImages: [UIImage]?
-    @Published var originalImage = UIImage(resource: .face) {
+    @Published var originalImage = UIImage(resource: .noFaces) {
         didSet {
             processedImages = nil
         }
@@ -21,8 +21,8 @@ class DemoViewModel: ObservableObject {
         configuration.drawFacesImage = true
         configuration.drawCutoutFacesImage = true
         configuration.drawFacesInBoundingBoxes = true
-        
-        
+                
+        faceSeg.configuration = configuration
         faceSeg.delegate = self
     }
     
@@ -34,6 +34,8 @@ class DemoViewModel: ObservableObject {
 
 extension DemoViewModel: FaceSegDelegate {
     func didFinishProcessing(_ result: FaceSegResult) {
+        print("Finished processing image. Metadata: \(result.metadata)")
+        
         var images = [result.debugImage, result.facesImage, result.cutoutFacesImage].compactMap({$0})
         images.append(contentsOf: result.facesInBoundingBoxes ?? [])
         

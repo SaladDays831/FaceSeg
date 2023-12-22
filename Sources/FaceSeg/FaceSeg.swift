@@ -1,8 +1,22 @@
 import UIKit
 import Vision
 
+public struct FaceSegMetadata {
+    /// Number of detected faces
+    public let faceCount: Int
+    
+    /// Array of CGRects around the detected faces
+    public let boundingBoxes: [CGRect]
+    
+    /// Array containing the landmark point coordinates for each detected face
+    public let landmarks: [[CGPoint]]
+    
+    /// Array of UIBezierPaths used to draw/segment the faces
+    public let facePaths: [UIBezierPath]
+}
+
 public struct FaceSegResult {
-    public let boundingBoxes: [CGRect]?
+    public let metadata: FaceSegMetadata
     
     /// Image with drawn paths around the detected faces
     public let debugImage: UIImage?
@@ -15,6 +29,17 @@ public struct FaceSegResult {
     
     /// An array of detected faces as separate images
     public let facesInBoundingBoxes: [UIImage]?
+}
+
+extension FaceSegResult {
+    static func noFaces() -> FaceSegResult {
+        let metadata = FaceSegMetadata(faceCount: 0, boundingBoxes: [], landmarks: [], facePaths: [])
+        return .init(metadata: metadata,
+                     debugImage: nil,
+                     facesImage: nil,
+                     cutoutFacesImage: nil,
+                     facesInBoundingBoxes: nil)
+    }
 }
 
 public protocol FaceSegDelegate: AnyObject {
@@ -47,15 +72,34 @@ public class FaceSeg {
         getObservations(from: image) { observations in
             let landmarks = self.getFaceLandmarkPoints(faces: observations, image: image)
             let paths = self.createCurves(from: landmarks)
-            
             let boundingBoxes = observations.map({ self.convertBoundingBoxToImageCoordinates($0.boundingBox, image: image) })
             
-            let debugImage = self.drawDebugImage(boxes: boundingBoxes, paths: paths, landmarks: landmarks, image: image)
-            let onlyFacesImage = self.drawOnlyFaces(facePaths: paths, image: image)
-            let cutoutFacesImage = self.drawImageWithoutFaces(facePaths: paths, image: image)
-            let facesInBoxes = self.drawFacesInBoundingBoxes(observations: observations, facePaths: paths, image: image)
+            let metadata = FaceSegMetadata(faceCount: observations.count,
+                                           boundingBoxes: boundingBoxes,
+                                           landmarks: landmarks,
+                                           facePaths: paths)
             
-            let result = FaceSegResult(boundingBoxes: boundingBoxes,
+            var debugImage: UIImage?
+            if self.configuration.drawDebugImage {
+                debugImage = self.drawDebugImage(boxes: boundingBoxes, paths: paths, landmarks: landmarks, image: image)
+            }
+            
+            var onlyFacesImage: UIImage?
+            if self.configuration.drawFacesImage {
+                onlyFacesImage = self.drawOnlyFaces(facePaths: paths, image: image)
+            }
+            
+            var cutoutFacesImage: UIImage?
+            if self.configuration.drawCutoutFacesImage {
+                cutoutFacesImage = self.drawImageWithoutFaces(facePaths: paths, image: image)
+            }
+            
+            var facesInBoxes: [UIImage]?
+            if self.configuration.drawFacesInBoundingBoxes {
+                facesInBoxes = self.drawFacesInBoundingBoxes(observations: observations, facePaths: paths, image: image)
+            }
+            
+            let result = FaceSegResult(metadata: metadata,
                                        debugImage: debugImage,
                                        facesImage: onlyFacesImage,
                                        cutoutFacesImage: cutoutFacesImage,
@@ -75,13 +119,15 @@ public class FaceSeg {
                                                    options: [:])
         
         let request = VNDetectFaceLandmarksRequest { request, error in
-            if let observations = request.results as? [VNFaceObservation] {
-                // TODO: Throw error if observations.isEmpty
-                completion(observations)
-            } else {
-                // TODO: Check if I need to call completion in else
+            guard let observations = request.results as? [VNFaceObservation] else {
                 self.delegate?.didFinishWithError("Can't get VNFaceObservation array")
+                return
             }
+            guard !observations.isEmpty else {
+                self.delegate?.didFinishProcessing(FaceSegResult.noFaces())
+                return
+            }
+            completion(observations)
         }
         
         #if targetEnvironment(simulator)
