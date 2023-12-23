@@ -6,7 +6,7 @@ class DemoViewModel: ObservableObject {
     private let faceSeg = FaceSeg()
     
     @Published var processedImages: [UIImage]?
-    @Published var originalImage = UIImage(resource: .noFaces) {
+    @Published var originalImage = UIImage(resource: .demoImg) {
         didSet {
             processedImages = nil
         }
@@ -34,7 +34,7 @@ class DemoViewModel: ObservableObject {
 
 extension DemoViewModel: FaceSegDelegate {
     func didFinishProcessing(_ result: FaceSegResult) {
-        print("Finished processing image. Metadata: \(result.metadata)")
+        print("Finished processing image. Found \(result.metadata.faceCount) faces")
         
         var images = [result.debugImage, result.facesImage, result.cutoutFacesImage].compactMap({$0})
         images.append(contentsOf: result.facesInBoundingBoxes ?? [])
