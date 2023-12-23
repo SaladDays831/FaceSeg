@@ -1,81 +1,9 @@
 import UIKit
 import Vision
 
-public enum FaceSegError {
-    case imageConversionFailed
-    case visionRequestFailed(visionErrorDescription: String)
-    case observationMissingData
-    case drawFacesInBoxesFailed(reason: String)
-    
-    public var errorString: String {
-        switch self {
-        case .imageConversionFailed:
-            return "Failed to convert provided UIImage to CGImage"
-        case let .visionRequestFailed(error):
-            return "VNRequest failed. Can't get VNFaceObservation array. \(error)"
-        case .observationMissingData:
-            return "VNFaceObservation is missing the data needed to build a facePath"
-        case let .drawFacesInBoxesFailed(reason):
-            return "drawFacesInBoundingBoxes() error: \(reason)"
-        }
-    }
-}
-
-public struct FaceSegMetadata {
-    /// Number of detected faces
-    public let faceCount: Int
-    
-    /// Array of CGRects around the detected faces
-    public let boundingBoxes: [CGRect]
-    
-    /// Array containing the landmark point coordinates for each detected face
-    public let landmarks: [[CGPoint]]
-    
-    /// Array of UIBezierPaths used to draw/segment the faces
-    public let facePaths: [UIBezierPath]
-}
-
-public struct FaceSegResult {
-    public let metadata: FaceSegMetadata
-    
-    /// Image with drawn paths around the detected faces
-    public let debugImage: UIImage?
-    
-    /// Image with the segmented faces on a transparent background. The location/scale of the faces is preserved
-    public let facesImage: UIImage?
-    
-    /// Original image with transparent holes instead of the detected faces
-    public let cutoutFacesImage: UIImage?
-    
-    /// An array of detected faces as separate images
-    public let facesInBoundingBoxes: [UIImage]?
-}
-
-extension FaceSegResult {
-    static func noFaces() -> FaceSegResult {
-        let metadata = FaceSegMetadata(faceCount: 0, boundingBoxes: [], landmarks: [], facePaths: [])
-        return .init(metadata: metadata,
-                     debugImage: nil,
-                     facesImage: nil,
-                     cutoutFacesImage: nil,
-                     facesInBoundingBoxes: nil)
-    }
-}
-
 public protocol FaceSegDelegate: AnyObject {
     func didFinishProcessing(_ result: FaceSegResult)
     func didFinishWithError(_ error: FaceSegError)
-}
-
-public class FaceSegConfiguration {
-    
-    public init() {}
-    
-    public var drawDebugImage = true
-    public var drawFacesImage = true
-    public var drawCutoutFacesImage = true
-    public var drawFacesInBoundingBoxes = true
-    public var faceInBoundingBoxImageHeight: CGFloat = 512
 }
 
 public class FaceSeg {
