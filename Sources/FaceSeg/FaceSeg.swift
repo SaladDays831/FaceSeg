@@ -1,7 +1,25 @@
 import UIKit
 import Vision
 
-// TODO: Add FaceSegError
+public enum FaceSegError {
+    case imageConversionFailed
+    case visionRequestFailed(visionErrorDescription: String)
+    case observationMissingData
+    case drawFacesInBoxesFailed(reason: String)
+    
+    public var errorString: String {
+        switch self {
+        case .imageConversionFailed:
+            return "Failed to convert provided UIImage to CGImage"
+        case let .visionRequestFailed(error):
+            return "VNRequest failed. Can't get VNFaceObservation array. \(error)"
+        case .observationMissingData:
+            return "VNFaceObservation is missing the data needed to build a facePath"
+        case let .drawFacesInBoxesFailed(reason):
+            return "drawFacesInBoundingBoxes() error: \(reason)"
+        }
+    }
+}
 
 public struct FaceSegMetadata {
     /// Number of detected faces
@@ -46,7 +64,7 @@ extension FaceSegResult {
 
 public protocol FaceSegDelegate: AnyObject {
     func didFinishProcessing(_ result: FaceSegResult)
-    func didFinishWithError(_ errorString: String)
+    func didFinishWithError(_ error: FaceSegError)
 }
 
 public class FaceSegConfiguration {
@@ -114,7 +132,10 @@ public class FaceSeg {
     // MARK: -  Private
 
     private func getObservations(from image: UIImage, completion: @escaping (([VNFaceObservation]) -> Void)) {
-        guard let cgImage = image.cgImage else { fatalError() }
+        guard let cgImage = image.cgImage else {
+            delegate?.didFinishWithError(.imageConversionFailed)
+            return
+        }
         
         let requestHandler = VNImageRequestHandler(cgImage: cgImage,
                                                    orientation: getCGImageOrientation(from: image.imageOrientation),
@@ -122,7 +143,7 @@ public class FaceSeg {
         
         let request = VNDetectFaceLandmarksRequest { request, error in
             guard let observations = request.results as? [VNFaceObservation] else {
-                self.delegate?.didFinishWithError("Can't get VNFaceObservation array")
+                self.delegate?.didFinishWithError(.visionRequestFailed(visionErrorDescription: error?.localizedDescription ?? "Unknown"))
                 return
             }
             guard !observations.isEmpty else {
@@ -132,15 +153,20 @@ public class FaceSeg {
             completion(observations)
         }
         
+        
         #if targetEnvironment(simulator)
-            print("SIM")
+            print("""
+                Running on simulator, this will cause incorrect results.
+                Please refer to this forum post:
+                https://developer.apple.com/forums/thread/690605?answerId=774185022#774185022
+            """)
             request.usesCPUOnly = true
         #endif
         
         do {
             try requestHandler.perform([request])
         } catch {
-            self.delegate?.didFinishWithError("VNDetectFaceLandmarksRequest error: \(error.localizedDescription)")
+            self.delegate?.didFinishWithError(.visionRequestFailed(visionErrorDescription: error.localizedDescription))
         }
     }
     
@@ -194,7 +220,8 @@ public class FaceSeg {
                 let leftEyebrowEdgePointRaw = face.landmarks?.leftEyebrow?.normalizedPoints[0],
                 let rightEyebrowEdgePointRaw = face.landmarks?.rightEyebrow?.normalizedPoints[0]
             else {
-                fatalError()
+                delegate?.didFinishWithError(.observationMissingData)
+                return []
             }
             
             let lastFacePoint = convertFacePointToImageCoordinates(lastFacePointRaw, face: face, image: image)
@@ -206,7 +233,7 @@ public class FaceSeg {
             let leftEyebrowControlPoint = convertFacePointToImageCoordinates(leftEyebrowEdgePointRaised, face: face, image: image)
             let rightEyebrowControlPoint = convertFacePointToImageCoordinates(rightEyebrowEdgePointRaised, face: face, image: image)
             
-            // TODO: Add a point in the middle of the forehead. Between the eyebrows + raised. An idea is to use the top point of the bounding box
+            // TODO: Add a point in the middle of the forehead. Between the eyebrows + raised. Not sure I need this, tilted faces will have problems
             
             let topFacePartPoints = [leftEyebrowControlPoint, rightEyebrowControlPoint, firstFacePoint]
             points.append(contentsOf: topFacePartPoints)
@@ -239,33 +266,38 @@ public class FaceSeg {
         let finalImage = renderer.image { context in
             image.draw(in: CGRect(origin: .zero, size: image.size))
             
+            var lineWidths: [CGFloat] = []
+            
             // Draw the boxes before applying the context transformation, as the rects are already adjusted
             for box in boxes {
-                print(box.size)
                 context.cgContext.addRect(box)
                 context.cgContext.setStrokeColor(UIColor.red.cgColor)
-                context.cgContext.setLineWidth(10.0)
+                let lineWidth = getStrokeLineWidth(for: box)
+                lineWidths.append(lineWidth)
+                context.cgContext.setLineWidth(lineWidth)
                 context.cgContext.drawPath(using: .stroke)
             }
             
             context.cgContext.translateBy(x: 0, y: image.size.height)
             context.cgContext.scaleBy(x: 1.0, y: -1.0)
             
-            for path in paths {
+            for (i, path) in paths.enumerated() {
                 context.cgContext.addPath(path.cgPath)
                 context.cgContext.setStrokeColor(UIColor.systemPink.cgColor)
-                context.cgContext.setLineWidth(8.0) // TODO: line width based on boundingBox size
+                context.cgContext.setLineWidth(lineWidths[i])
                 context.cgContext.drawPath(using: .stroke)
             }
             
-            let radius: CGFloat = 8.0
-            for point in landmarks.flatMap({$0}) {
-                context.cgContext.setFillColor(UIColor.green.cgColor)
-                context.cgContext.addEllipse(in: CGRect(x: point.x - radius,
-                                                        y: point.y - radius,
-                                                        width: radius * 2,
-                                                        height: radius * 2))
-                context.cgContext.drawPath(using: .fill)
+            for (i, landmarkArray) in landmarks.enumerated() {
+                let radius = lineWidths[i]
+                for point in landmarkArray {
+                    context.cgContext.setFillColor(UIColor.green.cgColor)
+                    context.cgContext.addEllipse(in: CGRect(x: point.x - radius,
+                                                            y: point.y - radius,
+                                                            width: radius * 2,
+                                                            height: radius * 2))
+                    context.cgContext.drawPath(using: .fill)
+                }
             }
         }
         
@@ -340,12 +372,12 @@ public class FaceSeg {
     
     private func drawFacesInBoundingBoxes(observations: [VNFaceObservation], facePaths: [UIBezierPath], image: UIImage) -> [UIImage] {
         guard observations.count == facePaths.count else {
-            delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Observation count doesn't match facePath count")
+            delegate?.didFinishWithError(.drawFacesInBoxesFailed(reason: "Observation count doesn't match facePath count"))
             return []
         }
 
         guard let onlyFacesImage = drawOnlyFaces(facePaths: facePaths, image: image) else {
-            delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Can't draw segmented faces image")
+            delegate?.didFinishWithError(.drawFacesInBoxesFailed(reason: "Can't draw segmented faces image"))
             return []
         }
 
@@ -365,7 +397,7 @@ public class FaceSeg {
                 if let croppedImage = onlyFacesImage.cgImage?.cropping(to: box) {
                     context.cgContext.draw(croppedImage, in: CGRect(origin: .zero, size: targetSize))
                 } else {
-                    delegate?.didFinishWithError("drawFacesInBoundingBoxes error: Failed to crop segmented image to bounding box")
+                    delegate?.didFinishWithError(.drawFacesInBoxesFailed(reason: "Failed to crop segmented image to bounding box"))
                 }
             }
             faceImages.append(finalImage)
@@ -375,6 +407,13 @@ public class FaceSeg {
     }
     
     // MARK: - Utility
+    
+    /// Returns a siutable stroke line width to use with the debug image
+    private func getStrokeLineWidth(for box: CGRect) -> CGFloat {
+        let refWidth: CGFloat = 530
+        let refLineWidth: CGFloat = 10
+        return box.height * refLineWidth / refWidth
+    }
     
     /// Returns a new point by moving pointB away from pointA by their distance along the line connecting the two points
     private func pointAlongLine(pointA: CGPoint, pointB: CGPoint) -> CGPoint {

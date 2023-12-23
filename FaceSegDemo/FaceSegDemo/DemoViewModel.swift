@@ -42,7 +42,7 @@ extension DemoViewModel: FaceSegDelegate {
         processedImages = images
     }
     
-    func didFinishWithError(_ errorString: String) {
-        print(errorString)
+    func didFinishWithError(_ error: FaceSegError) {
+        print("FaceSeg finished with error: \(error.errorString)")
     }
 }
