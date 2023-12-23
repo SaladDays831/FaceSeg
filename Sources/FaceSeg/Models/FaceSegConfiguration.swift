@@ -4,9 +4,9 @@ public class FaceSegConfiguration {
     
     public init() {}
     
-    public var drawDebugImage = true
-    public var drawFacesImage = true
-    public var drawCutoutFacesImage = true
-    public var drawFacesInBoundingBoxes = true
+    public var drawDebugImage = false
+    public var drawFacesImage = false
+    public var drawCutoutFacesImage = false
+    public var drawFacesInBoundingBoxes = false
     public var faceInBoundingBoxImageHeight: CGFloat = 512
 }

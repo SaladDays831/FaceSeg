@@ -86,7 +86,7 @@ public class FaceSeg {
             print("""
                 Running on simulator, this will cause incorrect results.
                 Please refer to this forum post:
-                https://developer.apple.com/forums/thread/690605?answerId=774185022#774185022
+                https://developer.apple.com/forums/thread/690605
             """)
             request.usesCPUOnly = true
         #endif
