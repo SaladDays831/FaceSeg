@@ -41,20 +41,32 @@ A working example can be found in the `FaceSegDemo` folder
 
 ### `FaceSegConfiguration` parameters
 
-**drawDebugImage**
+**drawDebugImage** <br />
 Original image with face bounding boxes, paths, and landmarks
+<p align="center">
+<img src="Images/debugImage.JPG" alt="Debug image" title="Debug image" width="500"/>
+</p>
 
-**drawFacesImage** 
+**drawFacesImage** <br />
 Image with the segmented faces on a transparent background. The location/scale of the faces is preserved
+<p align="center">
+<img src="Images/facesImage.JPG" alt="Faces image" title="Faces image" width="500"/>
+</p>
 
-**drawCutoutFacesImage**
-Original image with transparent holes instead of the detected faces
+**drawCutoutFacesImage** <br />
+-Original image with transparent holes instead of the detected faces
+<p align="center">
+<img src="Images/cutoutFacesImage.JPG" alt="Cutout Faces image" title="Cutout Faces image" width="500"/>
+</p>
 
-**drawFacesInBoundingBoxes**
+**faceInBoundingBoxImageHeight** <br />
+The size (width == height) of the resulting images in the `facesInBoundingBoxes` array <br />
+**drawFacesInBoundingBoxes** <br />
 An array of detected faces as separate images
-
-**faceInBoundingBoxImageHeight**
-The size (width == height) of the resulting images in the `facesInBoundingBoxes` array
+<p align="middle">
+  <img src="Images/faceInBoxImage1.JPG" width="200" />
+  <img src="Images/faceInBoxImage2.JPG" width="200" />
+</p>
 
 
 ### Note ⚠️
