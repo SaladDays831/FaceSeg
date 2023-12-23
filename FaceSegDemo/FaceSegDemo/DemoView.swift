@@ -17,46 +17,42 @@ struct DemoView: View {
                     self.viewModel.showingImagePicker = true
                 }
             }
+            .padding()
             
-            Image(uiImage: viewModel.modifiedImage ?? viewModel.originalImage)
+            Spacer()
+            
+            Image(uiImage: viewModel.originalImage)
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: 400)
-                .background(Color.gray)
+                .background(Color.white.opacity(0.1))
                 .padding()
             
-            VStack(alignment: .leading) {
-                HStack {
-                    CoolButton(title: "Debug") {
-                        viewModel.requestDebugImage()
-                    }
-                    Text("Draw lines and bounding boxes on the original image")
-                        .font(.footnote)
-                }
-                HStack {
-                    CoolButton(title: "Segment") {
-                        viewModel.requestSegmentedFacesImage()
-                    }
-                    Text("Segment the faces and composite on a transparent background (preserve the locations/scales)")
-                        .font(.footnote)
-                }
-                HStack {
-                    CoolButton(title: "Segment + scale") {
-                        viewModel.requestSeparateSegmentedFaceImages()
-                    }
-                    Text("Segment the faces and return a separate image for each face")
-                        .font(.footnote)
-                }
+            if let images = viewModel.processedImages {
+                HorizontalImageGrid(images: images, action: { index in
+                    viewModel.selectedImageIndex = index
+                    viewModel.showingImagePreview = true
+                })
             }
-            .padding()
             
+            Spacer()
+            
+            CoolButton(title: "Process", action: {
+                self.viewModel.processImage()
+            })            
             CoolButton(title: "Reset") {
-                self.viewModel.modifiedImage = nil
+                self.viewModel.processedImages = nil
             }
-            .opacity(viewModel.modifiedImage == nil ? 0 : 1)
+            .opacity(viewModel.processedImages == nil ? 0 : 1)
         }
+        .background(Color.black)
         .sheet(isPresented: $viewModel.showingImagePicker) {
             ImagePicker(image: $viewModel.originalImage, sourceType: self.viewModel.sourceType)
+        }
+        .sheet(isPresented: $viewModel.showingImagePreview) {
+            if let image = viewModel.processedImages?[viewModel.selectedImageIndex] {
+                ImagePreview(image: image)
+            }
         }
     }
 }
