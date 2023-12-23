@@ -1,6 +1,8 @@
 import UIKit
 import Vision
 
+// TODO: Add FaceSegError
+
 public struct FaceSegMetadata {
     /// Number of detected faces
     public let faceCount: Int
