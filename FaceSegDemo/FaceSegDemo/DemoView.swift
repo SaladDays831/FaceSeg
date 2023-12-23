@@ -30,7 +30,8 @@ struct DemoView: View {
             
             if let images = viewModel.processedImages {
                 HorizontalImageGrid(images: images, action: { index in
-                    print(index)
+                    viewModel.selectedImageIndex = index
+                    viewModel.showingImagePreview = true
                 })
             }
             
@@ -47,6 +48,11 @@ struct DemoView: View {
         .background(Color.black)
         .sheet(isPresented: $viewModel.showingImagePicker) {
             ImagePicker(image: $viewModel.originalImage, sourceType: self.viewModel.sourceType)
+        }
+        .sheet(isPresented: $viewModel.showingImagePreview) {
+            if let image = viewModel.processedImages?[viewModel.selectedImageIndex] {
+                ImagePreview(image: image)
+            }
         }
     }
 }

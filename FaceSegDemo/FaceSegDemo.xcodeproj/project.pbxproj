@@ -14,6 +14,7 @@
 		9749BC432B24B8A800F588D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9749BC422B24B8A800F588D8 /* Assets.xcassets */; };
 		9749BC472B24B8A800F588D8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9749BC462B24B8A800F588D8 /* Preview Assets.xcassets */; };
 		9749BC512B24BC0000F588D8 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9749BC502B24BC0000F588D8 /* ImagePicker.swift */; };
+		975447012B370A5900B08F4C /* ImagePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975447002B370A5900B08F4C /* ImagePreview.swift */; };
 		978C80F22B2B64C5004D68A3 /* FaceSeg in Frameworks */ = {isa = PBXBuildFile; productRef = 978C80F12B2B64C5004D68A3 /* FaceSeg */; };
 		97FEA6822B34E3AF003AD240 /* HorizontalImageGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97FEA6812B34E3AF003AD240 /* HorizontalImageGrid.swift */; };
 /* End PBXBuildFile section */
@@ -28,6 +29,7 @@
 		9749BC442B24B8A800F588D8 /* FaceSegDemo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FaceSegDemo.entitlements; sourceTree = "<group>"; };
 		9749BC462B24B8A800F588D8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		9749BC502B24BC0000F588D8 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		975447002B370A5900B08F4C /* ImagePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePreview.swift; sourceTree = "<group>"; };
 		97FEA6812B34E3AF003AD240 /* HorizontalImageGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizontalImageGrid.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -87,6 +89,7 @@
 				9719CF282B2A785C00406F3E /* CoolButton.swift */,
 				9749BC502B24BC0000F588D8 /* ImagePicker.swift */,
 				97FEA6812B34E3AF003AD240 /* HorizontalImageGrid.swift */,
+				975447002B370A5900B08F4C /* ImagePreview.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -171,6 +174,7 @@
 				97FEA6822B34E3AF003AD240 /* HorizontalImageGrid.swift in Sources */,
 				9749BC512B24BC0000F588D8 /* ImagePicker.swift in Sources */,
 				9749BC412B24B8A700F588D8 /* DemoView.swift in Sources */,
+				975447012B370A5900B08F4C /* ImagePreview.swift in Sources */,
 				9719CF2B2B2A78CC00406F3E /* DemoViewModel.swift in Sources */,
 				9749BC3F2B24B8A700F588D8 /* FaceSegDemoApp.swift in Sources */,
 			);

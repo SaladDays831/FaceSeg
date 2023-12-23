@@ -15,6 +15,9 @@ class DemoViewModel: ObservableObject {
     @Published var showingImagePicker = false
     @Published var sourceType: UIImagePickerController.SourceType = .photoLibrary
     
+    @Published var showingImagePreview = false
+    @Published var selectedImageIndex = 0
+    
     init() {
         let configuration = FaceSegConfiguration()
         configuration.drawDebugImage = true
